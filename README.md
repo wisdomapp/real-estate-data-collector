@@ -130,3 +130,13 @@ $env:GOOGLE_APPLICATION_CREDENTIALS="C:\Users\sora\Downloads\real-estate-data-49
 - `price_change_rate`: 前回からの価格変化率
 - `snapshots_observed`: 同一 `canonical_property_id` の観測回数
 - `is_latest_snapshot`: 最新観測フラグ
+
+## Batch scraping
+
+`--city-offset` を使うと、東京都売買の市区町村URLをバッチ単位で再開できます。`--page-limit 0` で各URLの全ページを取得します。
+
+```powershell
+$env:GOOGLE_APPLICATION_CREDENTIALS="C:\Users\sora\Downloads\real-estate-data-492405-13e806599967.json"
+.venv\Scripts\python.exe run_suumo_scraper.py --profile tokyo_sale_all --city-offset 15 --city-limit 5 --page-limit 0 --sleep-seconds 0.5
+.venv\Scripts\python.exe scripts\load_to_bigquery.py --project-id real-estate-data-492405 --dataset suumo --table listings_raw_v2 --input data\suumo\suumo_listings_YYYYMMDD_HHMMSS.jsonl --write-disposition WRITE_APPEND
+```

@@ -9,7 +9,7 @@ from .fetcher import FetchConfig, fetch_detail_pages, fetch_html
 from .normalizer import enrich_listings
 from .parser import parse_listings
 from .storage import write_csv, write_jsonl, write_text
-from .targets import discover_tokyo_sale_urls
+from .targets import discover_paginated_urls, discover_tokyo_sale_urls
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -60,6 +60,18 @@ def build_parser() -> argparse.ArgumentParser:
         default=10,
         help="Maximum number of Tokyo municipality listing pages to fetch for tokyo_sale_all. Use 0 for no limit.",
     )
+    parser.add_argument(
+        "--city-offset",
+        type=int,
+        default=0,
+        help="Number of discovered Tokyo municipality URLs to skip before scraping.",
+    )
+    parser.add_argument(
+        "--page-limit",
+        type=int,
+        default=0,
+        help="Maximum pages to fetch per listing URL. Use 0 for no limit.",
+    )
     return parser
 
 
@@ -76,7 +88,11 @@ def main() -> int:
         if args.url:
             source_urls = args.url
         elif args.profile == "tokyo_sale_all":
-            source_urls = discover_tokyo_sale_urls(config, city_limit=args.city_limit)
+            source_urls = discover_tokyo_sale_urls(config, city_limit=0)
+            if args.city_offset:
+                source_urls = source_urls[args.city_offset :]
+            if args.city_limit:
+                source_urls = source_urls[: args.city_limit]
         else:
             raise SystemExit("Either --url or --profile tokyo_sale_all is required.")
 
@@ -86,6 +102,16 @@ def main() -> int:
             raw_path = Path(args.raw_dir) / f"suumo_list_{stamp}_{index:03d}.html"
             write_text(raw_path, html_text)
             html_pairs.append((source_url, html_text))
+
+            paginated_urls = discover_paginated_urls(source_url, html_text)[1:]
+            if args.page_limit:
+                paginated_urls = paginated_urls[: max(args.page_limit - 1, 0)]
+
+            for page_index, paginated_url in enumerate(paginated_urls, start=2):
+                page_html = fetch_html(paginated_url, config)
+                raw_path = Path(args.raw_dir) / f"suumo_list_{stamp}_{index:03d}_page_{page_index:03d}.html"
+                write_text(raw_path, page_html)
+                html_pairs.append((paginated_url, page_html))
 
     rows = []
     for source_url, html_text in html_pairs:
