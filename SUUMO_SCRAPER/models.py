@@ -10,6 +10,7 @@ class ListingRecord:
     search_url: str
     detail_url: str
     listing_id: str
+    listing_kind: str
     building_name: str
     address: str
     access: str
@@ -21,6 +22,9 @@ class ListingRecord:
     admin_fee_text: str
     deposit_text: str
     gratuity_text: str
+    price_text: str = ""
+    land_area_m2: str = ""
+    building_area_m2: str = ""
     detail_address: str = ""
     detail_age: str = ""
     detail_floor_info: str = ""
@@ -39,6 +43,9 @@ class ListingRecord:
     detail_built_month: str = ""
     station_name: str = ""
     station_walk_minutes: str = ""
+    price_yen: str = ""
+    land_area_m2_value: str = ""
+    building_area_m2_value: str = ""
 
     def to_dict(self) -> dict[str, str]:
         return asdict(self)

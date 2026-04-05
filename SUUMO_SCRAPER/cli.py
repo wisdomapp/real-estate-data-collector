@@ -9,13 +9,20 @@ from .fetcher import FetchConfig, fetch_detail_pages, fetch_html
 from .normalizer import enrich_listings
 from .parser import parse_listings
 from .storage import write_csv, write_jsonl, write_text
+from .targets import discover_tokyo_sale_urls
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Fetch a SUUMO list page and store raw HTML plus parsed listings."
     )
-    parser.add_argument("--url", required=True, help="SUUMO list/search URL")
+    parser.add_argument("--url", action="append", help="SUUMO list/search URL. Can be passed multiple times.")
+    parser.add_argument(
+        "--profile",
+        default="tokyo_sale_all",
+        choices=["tokyo_sale_all", "custom_urls"],
+        help="Scraping target profile",
+    )
     parser.add_argument(
         "--raw-dir",
         default="raw/suumo",
@@ -47,6 +54,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=5,
         help="Maximum number of detail pages to fetch when --fetch-details is used",
     )
+    parser.add_argument(
+        "--city-limit",
+        type=int,
+        default=10,
+        help="Maximum number of Tokyo municipality listing pages to fetch for tokyo_sale_all. Use 0 for no limit.",
+    )
     return parser
 
 
@@ -56,15 +69,27 @@ def main() -> int:
 
     if args.input_html:
         html_text = Path(args.input_html).read_text(encoding="utf-8")
+        source_urls = args.url or ["https://suumo.jp/"]
+        html_pairs = [(source_urls[0], html_text)]
     else:
-        html_text = fetch_html(
-            args.url,
-            FetchConfig(sleep_seconds=args.sleep_seconds),
-        )
-        raw_path = Path(args.raw_dir) / f"suumo_list_{stamp}.html"
-        write_text(raw_path, html_text)
+        config = FetchConfig(sleep_seconds=args.sleep_seconds)
+        if args.url:
+            source_urls = args.url
+        elif args.profile == "tokyo_sale_all":
+            source_urls = discover_tokyo_sale_urls(config, city_limit=args.city_limit)
+        else:
+            raise SystemExit("Either --url or --profile tokyo_sale_all is required.")
 
-    rows = parse_listings(html_text, args.url)
+        html_pairs = []
+        for index, source_url in enumerate(source_urls, start=1):
+            html_text = fetch_html(source_url, config)
+            raw_path = Path(args.raw_dir) / f"suumo_list_{stamp}_{index:03d}.html"
+            write_text(raw_path, html_text)
+            html_pairs.append((source_url, html_text))
+
+    rows = []
+    for source_url, html_text in html_pairs:
+        rows.extend(parse_listings(html_text, source_url))
     jsonl_path = Path(args.out_dir) / f"suumo_listings_{stamp}.jsonl"
     csv_path = Path(args.out_dir) / f"suumo_listings_{stamp}.csv"
 
@@ -104,6 +129,7 @@ def main() -> int:
     write_csv(csv_path, rows)
 
     print(f"saved_raw_html={not bool(args.input_html)}")
+    print(f"source_page_count={len(html_pairs)}")
     print(f"listing_count={len(rows)}")
     print(f"jsonl_path={jsonl_path}")
     print(f"csv_path={csv_path}")

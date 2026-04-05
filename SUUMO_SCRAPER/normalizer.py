@@ -64,11 +64,14 @@ def parse_built_month(text: str) -> str:
 
 def enrich_listing(record: ListingRecord) -> ListingRecord:
     station_name, station_walk_minutes = parse_station_walk(record.access)
+    record.price_yen = _format_int(parse_price_yen(record.price_text))
     record.rent_yen = _format_int(parse_price_yen(record.rent_text))
     record.admin_fee_yen = _format_int(parse_price_yen(record.admin_fee_text))
     record.deposit_yen = _format_int(parse_price_yen(record.deposit_text))
     record.gratuity_yen = _format_int(parse_price_yen(record.gratuity_text))
     record.area_m2_value = _format_float(parse_area_m2(record.area_m2))
+    record.land_area_m2_value = _format_float(parse_area_m2(record.land_area_m2))
+    record.building_area_m2_value = _format_float(parse_area_m2(record.building_area_m2))
     record.age_years = _format_int(parse_age_years(record.age))
     record.detail_age_years = _format_int(parse_age_years(record.detail_age))
     record.detail_built_month = parse_built_month(record.detail_built_at)
