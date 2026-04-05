@@ -10,6 +10,8 @@
 
 賃貸ではなく、売買物件を前提にしています。
 
+時系列化のために、出力には `canonical_building_id`, `canonical_property_id`, `snapshot_date`, `snapshot_month` も含まれます。
+
 ## セットアップ
 
 ```powershell
@@ -68,6 +70,10 @@ pip install -r requirements.txt
 - `age`: 築年月などの生値
 - `station_name`: 最寄り駅名
 - `station_walk_minutes`: 徒歩分数
+- `snapshot_date`: 取得日
+- `snapshot_month`: 取得月
+- `canonical_building_id`: 同一建物を追跡する代表ID
+- `canonical_property_id`: 同一物件を追跡する代表ID
 
 詳細ページを取ると追加される列:
 
@@ -88,6 +94,12 @@ $env:GOOGLE_APPLICATION_CREDENTIALS="C:\path\to\service-account.json"
 .venv\Scripts\python.exe scripts\load_to_bigquery.py --project-id real-estate-data-492405 --dataset suumo --table listings_raw --input data\suumo\suumo_listings_20260405_132533.jsonl
 ```
 
+## 時系列化の考え方
+
+- `canonical_building_id` は同じ建物を束ねるためのIDです
+- `canonical_property_id` は同じ部屋や同じ戸建てを束ねるためのIDです
+- `snapshot_date` ごとに同じ `canonical_property_id` を並べることで、価格改定や掲載継続日数を作れます
+
 ## テスト
 
 ```powershell
@@ -99,3 +111,22 @@ $env:GOOGLE_APPLICATION_CREDENTIALS="C:\path\to\service-account.json"
 - SUUMOの利用条件、robots.txt、アクセス制御に従う
 - 高頻度アクセスを避ける
 - まずは小さく取得して、問題ないことを確認してから範囲を広げる
+
+## BigQuery time-series view
+
+`listings_raw_v2` を元に、`canonical_property_id` 単位の時系列 view を作れます。
+
+```powershell
+$env:GOOGLE_APPLICATION_CREDENTIALS="C:\Users\sora\Downloads\real-estate-data-492405-13e806599967.json"
+.venv\Scripts\python.exe scripts\create_bigquery_views.py --project-id real-estate-data-492405 --dataset suumo --source-table listings_raw_v2
+```
+
+作成される view 名は既定で `suumo.listings_timeseries_v1` です。主な追加列:
+
+- `previous_snapshot_date`: 前回観測日
+- `previous_price_yen`: 前回価格
+- `days_since_previous_snapshot`: 前回観測からの日数
+- `price_diff_yen`: 前回からの価格差
+- `price_change_rate`: 前回からの価格変化率
+- `snapshots_observed`: 同一 `canonical_property_id` の観測回数
+- `is_latest_snapshot`: 最新観測フラグ

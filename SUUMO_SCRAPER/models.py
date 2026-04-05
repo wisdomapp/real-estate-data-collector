@@ -7,6 +7,9 @@ from dataclasses import asdict, dataclass
 class ListingRecord:
     source: str
     scraped_at: str
+    partition_id: str
+    snapshot_date: str
+    snapshot_month: str
     search_url: str
     detail_url: str
     listing_id: str
@@ -46,6 +49,11 @@ class ListingRecord:
     price_yen: str = ""
     land_area_m2_value: str = ""
     building_area_m2_value: str = ""
+    address_normalized: str = ""
+    building_name_normalized: str = ""
+    station_name_normalized: str = ""
+    canonical_building_id: str = ""
+    canonical_property_id: str = ""
 
     def to_dict(self) -> dict[str, str]:
         return asdict(self)

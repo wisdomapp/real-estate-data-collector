@@ -107,6 +107,9 @@ def parse_rental_listings(html_text: str, search_url: str) -> list[ListingRecord
             record = ListingRecord(
                 source="suumo",
                 scraped_at=scraped_at,
+                partition_id="",
+                snapshot_date="",
+                snapshot_month="",
                 search_url=search_url,
                 detail_url=detail_url,
                 listing_id=infer_listing_id(detail_url),
@@ -152,6 +155,9 @@ def parse_sale_listings(html_text: str, search_url: str) -> list[ListingRecord]:
             ListingRecord(
                 source="suumo",
                 scraped_at=scraped_at,
+                partition_id="",
+                snapshot_date="",
+                snapshot_month="",
                 search_url=search_url,
                 detail_url=detail_url,
                 listing_id=infer_listing_id(detail_url),

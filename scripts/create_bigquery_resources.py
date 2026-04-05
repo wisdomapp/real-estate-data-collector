@@ -33,6 +33,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=["listing_id", "station_name"],
         help="BigQuery clustering fields",
     )
+    parser.add_argument(
+        "--partition-field",
+        default="partition_id",
+        help="BigQuery partition field",
+    )
     return parser
 
 
@@ -43,6 +48,7 @@ def load_schema(schema_path: Path) -> list[bigquery.SchemaField]:
             item["name"],
             item["type"],
             mode=item.get("mode", "NULLABLE"),
+            description=item.get("description", ""),
         )
         for item in raw_schema
     ]
@@ -59,11 +65,16 @@ def ensure_table(
     table_id: str,
     schema: list[bigquery.SchemaField],
     clustering_fields: list[str],
+    partition_field: str,
 ) -> bigquery.Table:
     table = bigquery.Table(table_id, schema=schema)
-    table.time_partitioning = bigquery.TimePartitioning(field="scraped_at")
+    table.time_partitioning = bigquery.TimePartitioning(field=partition_field)
     table.clustering_fields = clustering_fields
-    return client.create_table(table, exists_ok=True)
+    table = client.create_table(table, exists_ok=True)
+    table.schema = schema
+    table.time_partitioning = bigquery.TimePartitioning(field=partition_field)
+    table.clustering_fields = clustering_fields
+    return client.update_table(table, ["schema", "time_partitioning", "clustering_fields"])
 
 
 def main() -> int:
@@ -75,15 +86,14 @@ def main() -> int:
     schema = load_schema(Path(args.schema))
 
     dataset = ensure_dataset(client, dataset_id, args.location)
-    table = ensure_table(client, table_id, schema, args.clustering_fields)
+    table = ensure_table(client, table_id, schema, args.clustering_fields, args.partition_field)
 
     print(f"dataset_id={dataset.full_dataset_id}")
     print(f"table_id={table.full_table_id}")
-    print(f"partition_field=scraped_at")
+    print(f"partition_field={args.partition_field}")
     print(f"clustering_fields={','.join(table.clustering_fields or [])}")
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

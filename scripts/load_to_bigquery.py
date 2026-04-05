@@ -34,6 +34,7 @@ def load_schema(schema_path: Path) -> list[bigquery.SchemaField]:
             item["name"],
             item["type"],
             mode=item.get("mode", "NULLABLE"),
+            description=item.get("description", ""),
         )
         for item in raw_schema
     ]
