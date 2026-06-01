@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 from google.cloud import bigquery
 from sklearn.ensemble import HistGradientBoostingRegressor
-from sklearn.inspection import permutation_importance
+from sklearn.inspection import partial_dependence, permutation_importance
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 # 日本語(種類名・市区町村名)を Windows コンソールでも落とさず出力する
@@ -135,6 +135,30 @@ def main() -> int:
     print(f"{'feature':<32}{'importance':>12}{'std':>10}")
     for i in order:
         print(f"{FEATURES[i]:<32}{r.importances_mean[i]:>12.5f}{r.importances_std[i]:>10.5f}")
+
+    # 部分依存: 各特徴の値を動かしたとき、モデルが予測する「将来㎡単価変化率」の平均がどう動くか。
+    # 重要度が「効くか」なら、こちらは「どう効くか（向き・形）」を見る。
+    # 例: yoy_change_rate に対して右肩下がりなら平均回帰（高騰したエリアは翌年の伸びが鈍る）。
+    print("\n== 部分依存 (partial dependence: 特徴値 -> 予測される将来変化率の平均) ==")
+    pd_targets = [
+        "yoy_change_rate",
+        "qoq_change_rate",
+        "unit_price_m2_yen",
+        "n_transactions",
+        "avg_building_age_years",
+    ]
+    for feat in pd_targets:
+        if feat not in FEATURES:
+            continue
+        idx = FEATURES.index(feat)
+        pdr = partial_dependence(
+            model, X_test, [idx], grid_resolution=7, percentiles=(0.05, 0.95),
+            method="brute",  # 実データにモデルを当てて評価（recursion法は定数化することがある）
+        )
+        grid = pdr["grid_values"][0]
+        avg = pdr["average"][0]
+        cells = "  ".join(f"{g:>9.3f}:{a:+.3f}" for g, a in zip(grid, avg))
+        print(f"  {feat:<24} {cells}")
 
     return 0
 
