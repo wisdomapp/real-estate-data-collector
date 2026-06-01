@@ -23,7 +23,7 @@ WITH src AS (
 SELECT
   -- キー / 次元
   s.municipality_code,
-  s.municipality,
+  s.municipality,{district_select}
   s.type,
   s.period_year,
   s.period_quarter,
@@ -48,7 +48,7 @@ SELECT
 FROM src s
 LEFT JOIN src f
   ON s.municipality_code = f.municipality_code
- AND s.type = f.type
+ AND s.type = f.type{district_join}
  AND f.period_start_date = DATE_ADD(s.period_start_date, INTERVAL {horizon_months} MONTH)
 """.strip()
 
@@ -76,6 +76,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="目的変数の予測ホライズン（四半期数。既定4=1年先）",
     )
     parser.add_argument(
+        "--by-district",
+        action="store_true",
+        help="町丁目(district_name)粒度の相場ビューを元に作る（結合キーに district_name を含める）",
+    )
+    parser.add_argument(
         "--location",
         default=DEFAULT_LOCATION,
         help="BigQuery dataset location",
@@ -94,6 +99,8 @@ def main() -> int:
         source_view_id=source_view_id,
         horizon_q=args.horizon_quarters,
         horizon_months=args.horizon_quarters * 3,
+        district_select="\n  s.district_name," if args.by_district else "",
+        district_join="\n AND s.district_name = f.district_name" if args.by_district else "",
     )
 
     job = client.query(query)
