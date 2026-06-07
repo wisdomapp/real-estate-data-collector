@@ -181,51 +181,88 @@
 <div class="card">
   <p>松岡さんの「まず①の基礎集計 → 次に②の実践」に沿って、2つ試しました。どちらも勾配ブースティング（scikit-learn の HistGradientBoosting）です。<b>①＝今の“適正㎡単価”の推定（断面）</b>／<b>②＝1年先の㎡単価変化率の予測</b>。</p>
 
-  <h3>① 基礎集計：適正㎡単価の推定 <span class="muted" style="font-weight:400">中古マンション 102,910件</span></h3>
-  <p>面積・築年・立地（市区町村）・用途地域・間取りなどから、その物件の㎡単価を当てるヘドニック回帰。評価はランダム20%分割。「今ならいくらが妥当か」の土台です。</p>
+  <h3>① 基礎集計：適正㎡単価の推定（ヘドニック回帰）</h3>
+  <table class="tcand">
+    <thead><tr><th>項目</th><th>中身</th></tr></thead>
+    <tbody>
+      <tr><td>対象</td><td>中古マンション等。103,950件 →（㎡単価の上下0.5%を外れ値除去）→ <b>102,910件</b>（㎡単価 約11.2万〜341.6万円/㎡の範囲）</td></tr>
+      <tr><td>目的変数</td><td><code>log(㎡単価)</code>　※㎡単価 ＝ 成約総額 ÷ 専有面積</td></tr>
+      <tr><td>特徴量（数値）</td><td>専有面積 <code>area_m2</code>、築年数 <code>building_age_years</code></td></tr>
+      <tr><td>特徴量（カテゴリ）</td><td>市区町村 <code>municipality_code</code>、構造、間取り、用途地域、改装有無、取引年、取引四半期</td></tr>
+      <tr><td>未使用</td><td>町丁目（種類が多すぎて木のカテゴリに不向き＝立地は市区町村まで）／設備・階・向き・デベロッパー（公的データに無い）</td></tr>
+      <tr><td>モデル</td><td>HistGradientBoostingRegressor（learning_rate0.05 / max_depth6 / max_iter600 / early_stopping）</td></tr>
+      <tr><td>評価</td><td>ランダム 80/20 分割（学習 82,328 件 / 検証 20,582 件）。※「いまの妥当値」の当てはめなので時系列分割は不要</td></tr>
+    </tbody>
+  </table>
   <div class="metrics">
-    <div class="metric best"><div class="v">0.86</div><div class="l">R²（log㎡単価）</div></div>
-    <div class="metric"><div class="v">±12.5%</div><div class="l">誤差（絶対%誤差の中央値）</div></div>
-    <div class="metric"><div class="v">立地≫築年</div><div class="l">効く順（次に市況）</div></div>
+    <div class="metric best"><div class="v">0.862</div><div class="l">R²（log㎡単価・検証）</div></div>
+    <div class="metric"><div class="v">12.5%</div><div class="l">絶対%誤差 中央値<br>（平均は16.2%）</div></div>
   </div>
-  <p>㎡単価への効き方（重要度）は <b>立地(市区町村) ≫ 築年 ≫ 市況(年) ＞ 用途地域 ＞ 間取り・面積</b>。立地と築年でだいたい決まり、<b>面積の寄与は意外と小さい</b>＝「広さ・駅近・築年だけでは決め手にならない」感覚とも一致しました。</p>
-  <p class="legend">※ 設備・階・向き・デベロッパー等の物件固有情報は未投入（公的データに無いため）。ここを足すと精度・納得感はさらに上がるはず＝今後の課題。①はあくまで「一定の精度で土台が作れるか」の確認が目的です。</p>
+  <p style="margin:10px 0 4px"><b>㎡単価への効き方（permutation importance＝その特徴を壊した時のR²低下量）</b></p>
+  <table>
+    <thead><tr><th>特徴</th><th>重要度(R²低下)</th><th>意味</th></tr></thead>
+    <tbody>
+      <tr style="background:var(--green-soft)"><td><b>municipality_code（立地）</b></td><td><b>0.94</b></td><td>圧倒的に支配的</td></tr>
+      <tr style="background:var(--green-soft)"><td><b>building_age_years（築年）</b></td><td><b>0.53</b></td><td>次に大きい</td></tr>
+      <tr><td>period_year（市況・取引年）</td><td>0.09</td><td>2021→2025の値上がり分</td></tr>
+      <tr><td>city_planning（用途地域）</td><td>0.04</td><td>—</td></tr>
+      <tr><td>floor_plan（間取り）</td><td>0.03</td><td>—</td></tr>
+      <tr><td>area_m2（面積）</td><td>0.03</td><td>意外と小さい</td></tr>
+      <tr><td>structure / period_quarter / renovation</td><td>≤0.01</td><td>ほぼ効かない</td></tr>
+    </tbody>
+  </table>
+  <p class="legend">→ <b>立地と築年でほぼ決まり、面積の寄与は小さい</b>。「広さ・駅近・築年だけでは決め手にならない」感覚と一致。誤差±12.5%は、設備・階・向きや町丁目を入れていない割には素直な水準で、これらを足せばさらに改善余地あり（＝今後の課題）。</p>
 
-  <h3 style="margin-top:26px">② 予測：1年先の㎡単価変化率</h3>
-  <p class="muted" style="margin-top:0">エリア×時期の相場の「勢い」から、1年後にどれだけ上下するかを当てにいく実践編。①よりずっと難しいタスクです。</p>
-  <ul>
-    <li><b>評価はカンニング無しの時系列分割</b>：学習＝2021〜2023年、検証＝2024年（＝過去で学んで“未来”を当てにいく形）。</li>
-    <li>取引数が少なすぎるエリアはノイズになるので <code>n_transactions ≥ 5</code> で足切り。</li>
-    <li>「素朴な予測」を対抗馬に置いて、モデルがそれを超えるかで判断（変化ゼロ予測／前年と同じだけ動く予測／学習平均）。</li>
-  </ul>
+  <h3 style="margin-top:28px">② 予測：1年先の㎡単価変化率</h3>
+  <table class="tcand">
+    <thead><tr><th>項目</th><th>中身</th></tr></thead>
+    <tbody>
+      <tr><td>粒度・対象</td><td>1行 ＝（エリア × 種類 × 四半期）。エリアは v1=市区町村 / v2=町丁目。取引数 <code>n_transactions ≥ 5</code> で足切り（v2：学習 4,460 / 検証 1,561）</td></tr>
+      <tr><td>目的変数</td><td>4四半期先（1年先）の㎡単価中央値の変化率 <code>(P[t+4] − P[t]) / P[t]</code></td></tr>
+      <tr><td>特徴量（時点t以前のみ＝リーク無し）</td><td>現㎡単価水準、前期比 <code>qoq</code>、前年比 <code>yoy</code>、取引数、平均築年、市区町村、種類、四半期</td></tr>
+      <tr><td>モデル・評価</td><td>同 HistGradientBoosting。<b>時系列分割</b>＝学習 2021〜2023 / 検証 2024（過去で学んで未来を当てる）</td></tr>
+    </tbody>
+  </table>
 
-  <h3>結果A：粒度を上げると説明力が大きく改善（v1 市区町村 → v2 町丁目）</h3>
+  <p style="margin:12px 0 4px"><b>結果A：粒度を町丁目にすると説明力が約3倍（検証＝2024年）</b></p>
   <div class="metrics">
     <div class="metric"><div class="v">+0.082</div><div class="l">R²：v1 市区町村粒度</div></div>
     <div class="metric best"><div class="v">+0.210</div><div class="l">R²：v2 町丁目粒度（約3倍）</div></div>
-    <div class="metric"><div class="v">全勝</div><div class="l">対 素朴ベースライン<br>（両粒度とも）</div></div>
   </div>
   <table>
-    <thead><tr><th>モデル（検証=2024年）</th><th>MAE</th><th>R²</th><th>コメント</th></tr></thead>
+    <thead><tr><th>モデル（町丁目 v2・検証=2024）</th><th>MAE</th><th>RMSE</th><th>R²</th><th>コメント</th></tr></thead>
     <tbody>
-      <tr style="background:var(--green-soft)"><td><b>勾配ブースティング（町丁目 v2）</b></td><td>0.176</td><td><b>+0.210</b></td><td>唯一プラスの説明力</td></tr>
-      <tr><td>素朴：学習平均で予測</td><td>0.201</td><td>−0.001</td><td>—</td></tr>
-      <tr><td>素朴：変化ゼロで予測</td><td>0.206</td><td>−0.069</td><td>—</td></tr>
-      <tr><td>素朴：前年と同じだけ動く</td><td>0.354</td><td>−2.078</td><td>むしろ大外し（後述）</td></tr>
+      <tr style="background:var(--green-soft)"><td><b>勾配ブースティング</b></td><td>0.176</td><td>0.254</td><td><b>+0.210</b></td><td>唯一プラスの説明力</td></tr>
+      <tr><td>素朴：学習平均で予測</td><td>0.201</td><td>0.285</td><td>−0.001</td><td>—</td></tr>
+      <tr><td>素朴：変化ゼロで予測</td><td>0.206</td><td>0.295</td><td>−0.069</td><td>—</td></tr>
+      <tr><td>素朴：前年と同じだけ動く</td><td>0.354</td><td>0.500</td><td>−2.078</td><td>大外し＝勢いは続かない</td></tr>
     </tbody>
   </table>
-  <p class="legend">※ MAEの絶対値は粒度をまたぐと比較できません（町丁目の中央値は本質的に振れ幅が大きいため）。粒度をまたいで比べられるのは、自分のばらつきに対する説明力＝<b>R²</b>。そのR²が 0.08→0.21 と伸びた、というのが要点です。1年先のエリア価格変化はそもそも当てるのが難しい中で、素朴予測を有意に上回りました。</p>
+  <p class="legend">※ MAEの絶対値は粒度をまたぐと比較不可（町丁目の中央値は振れ幅が大きいため）。粒度をまたいで比べられるのは R²で、v1→v2 で 0.082→0.210。市区町村だと立地差が均されて弱く、町丁目にすると立地が効き出す、という構図です。</p>
 
-  <h3>結果B：予測の時間軸（1Q/2Q/4Q先）を変えても説明力は大きく変わらない</h3>
+  <p style="margin:12px 0 4px"><b>効き方（permutation importance＝MAE悪化量・町丁目 v2）</b></p>
   <table>
-    <thead><tr><th>予測の先（町丁目粒度）</th><th>R²</th></tr></thead>
+    <thead><tr><th>特徴</th><th>重要度(MAE悪化)</th><th>意味</th></tr></thead>
+    <tbody>
+      <tr style="background:var(--green-soft)"><td><b>qoq_change_rate（前期比）</b></td><td><b>0.020</b></td><td>直近の勢いが主役</td></tr>
+      <tr style="background:var(--green-soft)"><td><b>yoy_change_rate（前年比）</b></td><td><b>0.0096</b></td><td>同上</td></tr>
+      <tr><td>municipality_code（立地）</td><td>0.0021</td><td>町丁目集計で顔を出す</td></tr>
+      <tr><td>n_transactions（流動性）</td><td>0.0015</td><td>活発な地区がやや伸びる</td></tr>
+      <tr><td>avg_building_age_years ほか</td><td>≤0.001</td><td>—</td></tr>
+    </tbody>
+  </table>
+  <p class="legend">→ 効くのは主に<b>直近の勢い（前期比・前年比）</b>。ただし「前年と同じだけ動く」素朴予測が最悪だった通り、勢いは<b>持続ではなく反転（平均回帰）</b>。具体的な反転の形は次章の部分依存に。</p>
+
+  <p style="margin:12px 0 4px"><b>結果B：予測の先（1Q/2Q/4Q）を変えても説明力は大差なし（町丁目）</b></p>
+  <table>
+    <thead><tr><th>予測の先</th><th>R²</th></tr></thead>
     <tbody>
       <tr><td>3ヶ月先（1四半期）</td><td>+0.224</td></tr>
       <tr><td>6ヶ月先（2四半期）</td><td>+0.190</td></tr>
       <tr><td>1年先（4四半期）</td><td>+0.210</td></tr>
     </tbody>
   </table>
-  <p class="legend">→ エリアの価格の勢いは1年くらいまでなら持続的に効く様子。今回は解釈しやすい<b>「1年先」を主指標</b>に置きました（このあたりの時間軸も松岡さんのご希望に合わせます）。</p>
+  <p class="legend">→ 勢いは1年くらいまで持続的に効く。解釈しやすい<b>「1年先」を主指標</b>に置きました（時間軸も松岡さんのご希望に合わせます）。</p>
 
   <div class="callout ok"><b>①と②の対比がきれい：</b>「今の適正価格は属性でかなり説明できる（①R²0.86）／未来の値動きは本質的に難しい（②R²0.21）」。①は基礎集計として十分使える土台で、②はここからが本番（松岡さんの領域）です。</div>
 </div>
