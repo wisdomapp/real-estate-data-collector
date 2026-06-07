@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>国交省APIデータ 試し分析レポート（松岡さん共有用）</title>
+<style>
+  :root{
+    --bg:#f6f8fa; --card:#fff; --ink:#1f2933; --muted:#6b7785;
+    --line:#e3e8ee; --accent:#2563eb; --accent-soft:#eff4ff;
+    --green:#0f9d58; --green-soft:#e6f4ea;
+    --amber:#b7791f; --amber-soft:#fef6e6;
+    --red:#c0392b; --red-soft:#fdecea;
+    --slate:#475569;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Kaku Gothic ProN","Yu Gothic UI",Meiryo,sans-serif;
+    line-height:1.75; font-size:15px;
+  }
+  .wrap{max-width:980px; margin:0 auto; padding:32px 20px 80px}
+  header.hero{
+    background:linear-gradient(135deg,#0f766e,#0ea5a4); color:#fff;
+    border-radius:16px; padding:32px 34px; margin-bottom:28px;
+    box-shadow:0 10px 30px rgba(13,148,136,.25);
+  }
+  header.hero h1{margin:0 0 6px; font-size:25px; letter-spacing:.02em}
+  header.hero p{margin:4px 0; opacity:.95}
+  .roles{display:flex; gap:14px; flex-wrap:wrap; margin-top:18px}
+  .role{background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.3);
+    border-radius:10px; padding:10px 16px; font-size:14px}
+  .role b{display:block; font-size:15px}
+  h2{font-size:20px; margin:36px 0 14px; padding-bottom:8px; border-bottom:2px solid var(--line)}
+  h2 .num{color:var(--accent); margin-right:8px}
+  h3{font-size:16px; margin:22px 0 8px; color:var(--slate)}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:20px 22px; margin:14px 0; box-shadow:0 1px 2px rgba(16,24,40,.04)}
+  p{margin:8px 0}
+  ul{margin:8px 0 8px; padding-left:22px}
+  li{margin:4px 0}
+  code{background:#f1f3f6; border:1px solid #e3e8ee; border-radius:5px;
+    padding:1px 6px; font-size:13px; font-family:"SFMono-Regular",Consolas,Menlo,monospace}
+  .badge{display:inline-block; font-size:12px; font-weight:700; border-radius:999px;
+    padding:2px 11px; vertical-align:middle; white-space:nowrap}
+  .b-done{background:var(--green-soft); color:var(--green)}
+  .b-wait{background:var(--amber-soft); color:var(--amber)}
+  .b-todo{background:#eef1f5; color:var(--slate)}
+  table{width:100%; border-collapse:collapse; margin:12px 0; font-size:13.5px; background:#fff}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left; vertical-align:top}
+  th{background:#f3f6fb; font-weight:700}
+  td code{font-size:12.5px}
+  .muted{color:var(--muted)}
+  .callout{border-left:4px solid var(--accent); background:var(--accent-soft);
+    padding:12px 16px; border-radius:0 10px 10px 0; margin:14px 0}
+  .callout.warn{border-color:var(--amber); background:var(--amber-soft)}
+  .callout.danger{border-color:var(--red); background:var(--red-soft)}
+  .callout.ok{border-color:var(--green); background:var(--green-soft)}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+  @media(max-width:720px){.grid2{grid-template-columns:1fr}}
+  .tcand th{background:#eef4ff}
+  .key{font-weight:700; color:var(--accent)}
+  .legend{font-size:12.5px; color:var(--muted); margin:6px 0 0}
+  .metrics{display:flex; gap:14px; flex-wrap:wrap; margin:10px 0}
+  .metric{flex:1 1 150px; background:#f8fafc; border:1px solid var(--line);
+    border-radius:12px; padding:14px 16px; text-align:center}
+  .metric .v{font-size:24px; font-weight:800; color:#0f766e; line-height:1.1}
+  .metric .l{font-size:12px; color:var(--muted); margin-top:4px}
+  .best{background:var(--green-soft)} .best .v{color:var(--green)}
+  .pdwrap td:first-child{font-weight:600}
+  .arrow-down td{color:var(--red)}
+  .pos{color:var(--green); font-weight:700}
+  .neg{color:var(--red); font-weight:700}
+  footer{margin-top:40px; padding-top:16px; border-top:1px solid var(--line);
+    color:var(--muted); font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>国交省API データで「試しに」分析してみました</h1>
+  <p>— <b>松岡さんへの共有メモ</b>（ご参考まで）</p>
+  <p style="opacity:.95; font-size:13.5px; margin-top:10px">
+    APIキーが届いたので、まず<b>分析用のデータ基盤（テーブル・ビュー）</b>を作りました。せっかくなのでデータがちゃんと使える形になっているか確認する意味も込めて、<b>軽くベースラインの分析まで回してみた</b>結果をまとめます。<b>本番のモデル作りは松岡さんの所掌</b>なので、ここはあくまで「データの素性チェック＆叩き台」くらいの位置づけで見てください。「こんなデータ・テーブルが用意できています」という共有が主目的です。</p>
+  <p style="opacity:.85; font-size:13px; margin-top:10px">最終更新: 2026-06-01 ／ 作成: 平山</p>
+  <div class="roles">
+    <div class="role"><b>平山（私）</b>データ取得・分析用テーブル/ビュー作成</div>
+    <div class="role"><b>松岡さん</b>分析用テーブルを使った予測モデル作成（本番）</div>
+  </div>
+</header>
+
+<!-- 0. 位置づけ -->
+<h2><span class="num">0</span>このレポートの位置づけ</h2>
+<div class="card">
+  <ul>
+    <li>主目的は<b>「どんなデータ・テーブル・ビューを用意できたか」の共有</b>です（第1〜2章）。</li>
+    <li>第3〜4章の分析・モデルは、<b>データが学習に使える形か確かめるための“試運転”</b>です。精度を競う本番ではありません。</li>
+    <li>モデル設計・本番の精度追い込みは<b>松岡さんの領域</b>という前提で、結果は「こんな傾向が見えました」程度の参考情報として読んでください。</li>
+    <li>「このカラムも欲しい」「目的変数はこうしたい」など、<b>松岡さん目線での注文を歓迎</b>します。</li>
+  </ul>
+</div>
+
+<!-- 1. 取得データ -->
+<h2><span class="num">1</span>取得したデータ <span class="badge b-done">取得済</span></h2>
+<div class="card">
+  <p>国交省「不動産情報ライブラリ」公式API（<code>XIT001</code>）から、<b>東京都の成約価格</b>を取得しました（レインズ由来の成約価格＝<code>priceClassification=02</code>）。</p>
+  <div class="metrics">
+    <div class="metric"><div class="v">133,373</div><div class="l">取得した成約レコード数</div></div>
+    <div class="metric"><div class="v">2021〜2025</div><div class="l">対象期間（全20四半期）</div></div>
+    <div class="metric"><div class="v">東京都</div><div class="l">対象エリア（area=13）</div></div>
+  </div>
+  <table>
+    <thead><tr><th>種類</th><th>件数</th><th>備考</th></tr></thead>
+    <tbody>
+      <tr><td>中古マンション等</td><td>103,950</td><td>今回の分析の主対象</td></tr>
+      <tr><td>宅地(土地と建物) 等</td><td>29,423</td><td>戸建て等を含む</td></tr>
+    </tbody>
+  </table>
+  <h3>データの充足状況（実データで確認）</h3>
+  <ul>
+    <li>成約価格 <code>trade_price_yen</code>・面積 <code>area_m2</code> … <b>100%</b> 充足／建築年 … 98%</li>
+    <li class="muted">⚠️ 成約価格(02)では API の <b>㎡単価・坪単価・最寄駅名・徒歩分が空</b>でした（レインズ由来データの仕様）。
+      → <b>㎡単価は「総額 ÷ 面積」で自前計算</b>しています（両方100%あるので問題なし）。最寄駅は別途の駅マスタ側で扱う方針。</li>
+  </ul>
+  <p class="callout"><b>豆知識：</b>2025年は各四半期 約9,300件と、2021〜2024（約6,000件）より明確に多く取れました（成約データの収録拡充と思われます）。</p>
+</div>
+
+<!-- 2. テーブル/ビュー -->
+<h2><span class="num">2</span>作成したテーブル・ビュー（BigQuery） <span class="badge b-done">作成済</span></h2>
+<div class="card">
+  <p class="muted" style="margin-top:0">プロジェクト <code>real-estate-data-492405</code> / データセット <code>suumo</code> に、生データ1テーブル＋集計ビュー＋学習用ビューを用意しました。</p>
+
+  <h3>① <code>transactions_raw</code>（生の成約データ・1行=1成約）</h3>
+  <p class="muted">133,373行。取引時期の四半期初日でパーティション、種類・市区町村でクラスタリング。主なカラム：</p>
+  <table class="tcand">
+    <thead><tr><th>カラム</th><th>意味</th><th>型</th></tr></thead>
+    <tbody>
+      <tr><td><code>type</code></td><td>種類（中古マンション等／宅地 等）</td><td>STRING</td></tr>
+      <tr><td><code>municipality_code</code> / <code>municipality</code></td><td>市区町村コード／名</td><td>STRING</td></tr>
+      <tr><td><code>district_name</code></td><td>地区名（町丁目）<span class="muted">※価格データの最小粒度・全件充足</span></td><td>STRING</td></tr>
+      <tr><td class="key"><code>trade_price_yen</code></td><td>成約価格（総額・円）</td><td>INTEGER</td></tr>
+      <tr><td><code>area_m2</code> / <code>total_floor_area_m2</code></td><td>面積／延床面積（㎡）</td><td>FLOAT</td></tr>
+      <tr><td><code>floor_plan</code> / <code>structure</code></td><td>間取り／建物構造（RC等）</td><td>STRING</td></tr>
+      <tr><td><code>building_year_int</code> / <code>building_age_years</code></td><td>建築年（西暦）／取引時点の築年数</td><td>INTEGER</td></tr>
+      <tr><td><code>city_planning</code> / <code>coverage_ratio</code> / <code>floor_area_ratio</code></td><td>用途地域／建ぺい率／容積率</td><td>STRING</td></tr>
+      <tr><td class="key"><code>period_year</code> / <code>period_quarter</code> / <code>period_start_date</code></td><td>取引時期（年／四半期／四半期初日=DATE）</td><td>INT/DATE</td></tr>
+    </tbody>
+  </table>
+
+  <h3>② <code>transactions_area_quarterly_v1 / v2</code>（エリア×四半期の相場ビュー）</h3>
+  <p class="muted">①を集計して「そのエリア×時期の相場と勢い」を作るビュー。<b>v1＝市区町村粒度（1,953行）</b>、<b>v2＝町丁目粒度（約33,000行）</b>の2種類。</p>
+  <table class="tcand">
+    <thead><tr><th>カラム</th><th>意味</th></tr></thead>
+    <tbody>
+      <tr><td class="key"><code>median_unit_price_per_m2_yen</code></td><td>そのエリア×種類×四半期の㎡単価の中央値（総額÷面積から算出）</td></tr>
+      <tr><td><code>n_transactions</code></td><td>集計に使った成約件数（＝中央値の信頼度の目安／流動性）</td></tr>
+      <tr><td class="key"><code>qoq_change_rate</code></td><td>前四半期比の㎡単価変化率</td></tr>
+      <tr><td class="key"><code>yoy_change_rate</code></td><td>前年同期比の㎡単価変化率</td></tr>
+      <tr><td><code>avg_building_age_years</code></td><td>そのエリア×時期の平均築年数</td></tr>
+    </tbody>
+  </table>
+
+  <h3>③ <code>features_v1 / v2</code>（学習用ビュー・リーク防止済）</h3>
+  <p class="muted">②をもとに、<b>1行＝(エリア×種類×四半期)</b> で「特徴量」と「目的変数」を並べた学習用ビュー。v1=市区町村 / v2=町丁目。</p>
+  <table class="tcand">
+    <thead><tr><th>カラム</th><th>役割</th><th>意味</th></tr></thead>
+    <tbody>
+      <tr><td class="key"><code>target_change_rate</code></td><td>目的変数</td><td><b>N四半期先（既定=4＝1年先）の㎡単価変化率</b>（(P[t+4]−P[t])/P[t]）</td></tr>
+      <tr><td><code>unit_price_m2_yen</code></td><td>特徴量</td><td>現時点の㎡単価水準</td></tr>
+      <tr><td><code>qoq_change_rate</code> / <code>yoy_change_rate</code></td><td>特徴量</td><td>直近の勢い（前期比／前年比）</td></tr>
+      <tr><td><code>n_transactions</code> / <code>avg_building_age_years</code></td><td>特徴量</td><td>流動性／平均築年</td></tr>
+      <tr><td><code>municipality_code</code> / <code>type</code> / <code>period_quarter</code></td><td>特徴量</td><td>立地（区市）／種類／季節</td></tr>
+    </tbody>
+  </table>
+  <div class="callout"><b>リーク防止：</b>特徴量は「その時点までに分かる情報」だけ。目的変数（1年先）の算出にだけ未来の値を使い、しかも<b>暦の四半期で正確に突き合わせ</b>（歯抜けの四半期でズレないように）しています。目的変数は将来が未確定の直近4四半期では空欄になります。</div>
+</div>
+
+<!-- 3. 試した分析 -->
+<h2><span class="num">3</span>試しに回してみた分析と結果 <span class="badge b-todo">試運転</span></h2>
+<div class="card">
+  <p>松岡さんの「まず①の基礎集計 → 次に②の実践」に沿って、2つ試しました。どちらも勾配ブースティング（scikit-learn の HistGradientBoosting）です。<b>①＝今の“適正㎡単価”の推定（断面）</b>／<b>②＝1年先の㎡単価変化率の予測</b>。</p>
+
+  <h3>① 基礎集計：適正㎡単価の推定（ヘドニック回帰）</h3>
+  <table class="tcand">
+    <thead><tr><th>項目</th><th>中身</th></tr></thead>
+    <tbody>
+      <tr><td>対象</td><td>中古マンション等。103,950件 →（㎡単価の上下0.5%を外れ値除去）→ <b>102,910件</b>（㎡単価 約11.2万〜341.6万円/㎡の範囲）</td></tr>
+      <tr><td>目的変数</td><td><code>log(㎡単価)</code>　※㎡単価 ＝ 成約総額 ÷ 専有面積</td></tr>
+      <tr><td>特徴量（数値）</td><td>専有面積 <code>area_m2</code>、築年数 <code>building_age_years</code></td></tr>
+      <tr><td>特徴量（カテゴリ）</td><td>市区町村 <code>municipality_code</code>、構造、間取り、用途地域、改装有無、取引年、取引四半期</td></tr>
+      <tr><td>未使用</td><td>町丁目（種類が多すぎて木のカテゴリに不向き＝立地は市区町村まで）／設備・階・向き・デベロッパー（公的データに無い）</td></tr>
+      <tr><td>モデル</td><td>HistGradientBoostingRegressor（learning_rate0.05 / max_depth6 / max_iter600 / early_stopping）</td></tr>
+      <tr><td>評価</td><td>ランダム 80/20 分割（学習 82,328 件 / 検証 20,582 件）。※「いまの妥当値」の当てはめなので時系列分割は不要</td></tr>
+    </tbody>
+  </table>
+  <div class="metrics">
+    <div class="metric best"><div class="v">0.862</div><div class="l">R²（log㎡単価・検証）</div></div>
+    <div class="metric"><div class="v">12.5%</div><div class="l">絶対%誤差 中央値<br>（平均は16.2%）</div></div>
+  </div>
+  <p style="margin:10px 0 4px"><b>㎡単価への効き方（permutation importance＝その特徴を壊した時のR²低下量）</b></p>
+  <table>
+    <thead><tr><th>特徴</th><th>重要度(R²低下)</th><th>意味</th></tr></thead>
+    <tbody>
+      <tr style="background:var(--green-soft)"><td><b>municipality_code（立地）</b></td><td><b>0.94</b></td><td>圧倒的に支配的</td></tr>
+      <tr style="background:var(--green-soft)"><td><b>building_age_years（築年）</b></td><td><b>0.53</b></td><td>次に大きい</td></tr>
+      <tr><td>period_year（市況・取引年）</td><td>0.09</td><td>2021→2025の値上がり分</td></tr>
+      <tr><td>city_planning（用途地域）</td><td>0.04</td><td>—</td></tr>
+      <tr><td>floor_plan（間取り）</td><td>0.03</td><td>—</td></tr>
+      <tr><td>area_m2（面積）</td><td>0.03</td><td>意外と小さい</td></tr>
+      <tr><td>structure / period_quarter / renovation</td><td>≤0.01</td><td>ほぼ効かない</td></tr>
+    </tbody>
+  </table>
+  <p class="legend">→ <b>立地と築年でほぼ決まり、面積の寄与は小さい</b>。「広さ・駅近・築年だけでは決め手にならない」感覚と一致。誤差±12.5%は、設備・階・向きや町丁目を入れていない割には素直な水準で、これらを足せばさらに改善余地あり（＝今後の課題）。</p>
+
+  <h3 style="margin-top:28px">② 予測：1年先の㎡単価変化率</h3>
+  <table class="tcand">
+    <thead><tr><th>項目</th><th>中身</th></tr></thead>
+    <tbody>
+      <tr><td>粒度・対象</td><td>1行 ＝（エリア × 種類 × 四半期）。エリアは v1=市区町村 / v2=町丁目。取引数 <code>n_transactions ≥ 5</code> で足切り（v2：学習 4,460 / 検証 1,561）</td></tr>
+      <tr><td>目的変数</td><td>4四半期先（1年先）の㎡単価中央値の変化率 <code>(P[t+4] − P[t]) / P[t]</code></td></tr>
+      <tr><td>特徴量（時点t以前のみ＝リーク無し）</td><td>現㎡単価水準、前期比 <code>qoq</code>、前年比 <code>yoy</code>、取引数、平均築年、市区町村、種類、四半期</td></tr>
+      <tr><td>モデル・評価</td><td>同 HistGradientBoosting。<b>時系列分割</b>＝学習 2021〜2023 / 検証 2024（過去で学んで未来を当てる）</td></tr>
+    </tbody>
+  </table>
+
+  <p style="margin:12px 0 4px"><b>結果A：粒度を町丁目にすると説明力が約3倍（検証＝2024年）</b></p>
+  <div class="metrics">
+    <div class="metric"><div class="v">+0.082</div><div class="l">R²：v1 市区町村粒度</div></div>
+    <div class="metric best"><div class="v">+0.210</div><div class="l">R²：v2 町丁目粒度（約3倍）</div></div>
+  </div>
+  <table>
+    <thead><tr><th>モデル（町丁目 v2・検証=2024）</th><th>MAE</th><th>RMSE</th><th>R²</th><th>コメント</th></tr></thead>
+    <tbody>
+      <tr style="background:var(--green-soft)"><td><b>勾配ブースティング</b></td><td>0.176</td><td>0.254</td><td><b>+0.210</b></td><td>唯一プラスの説明力</td></tr>
+      <tr><td>素朴：学習平均で予測</td><td>0.201</td><td>0.285</td><td>−0.001</td><td>—</td></tr>
+      <tr><td>素朴：変化ゼロで予測</td><td>0.206</td><td>0.295</td><td>−0.069</td><td>—</td></tr>
+      <tr><td>素朴：前年と同じだけ動く</td><td>0.354</td><td>0.500</td><td>−2.078</td><td>大外し＝勢いは続かない</td></tr>
+    </tbody>
+  </table>
+  <p class="legend">※ MAEの絶対値は粒度をまたぐと比較不可（町丁目の中央値は振れ幅が大きいため）。粒度をまたいで比べられるのは R²で、v1→v2 で 0.082→0.210。市区町村だと立地差が均されて弱く、町丁目にすると立地が効き出す、という構図です。</p>
+
+  <p style="margin:12px 0 4px"><b>効き方（permutation importance＝MAE悪化量・町丁目 v2）</b></p>
+  <table>
+    <thead><tr><th>特徴</th><th>重要度(MAE悪化)</th><th>意味</th></tr></thead>
+    <tbody>
+      <tr style="background:var(--green-soft)"><td><b>qoq_change_rate（前期比）</b></td><td><b>0.020</b></td><td>直近の勢いが主役</td></tr>
+      <tr style="background:var(--green-soft)"><td><b>yoy_change_rate（前年比）</b></td><td><b>0.0096</b></td><td>同上</td></tr>
+      <tr><td>municipality_code（立地）</td><td>0.0021</td><td>町丁目集計で顔を出す</td></tr>
+      <tr><td>n_transactions（流動性）</td><td>0.0015</td><td>活発な地区がやや伸びる</td></tr>
+      <tr><td>avg_building_age_years ほか</td><td>≤0.001</td><td>—</td></tr>
+    </tbody>
+  </table>
+  <p class="legend">→ 効くのは主に<b>直近の勢い（前期比・前年比）</b>。ただし「前年と同じだけ動く」素朴予測が最悪だった通り、勢いは<b>持続ではなく反転（平均回帰）</b>。具体的な反転の形は次章の部分依存に。</p>
+
+  <p style="margin:12px 0 4px"><b>結果B：予測の先（1Q/2Q/4Q）を変えても説明力は大差なし（町丁目）</b></p>
+  <table>
+    <thead><tr><th>予測の先</th><th>R²</th></tr></thead>
+    <tbody>
+      <tr><td>3ヶ月先（1四半期）</td><td>+0.224</td></tr>
+      <tr><td>6ヶ月先（2四半期）</td><td>+0.190</td></tr>
+      <tr><td>1年先（4四半期）</td><td>+0.210</td></tr>
+    </tbody>
+  </table>
+  <p class="legend">→ 勢いは1年くらいまで持続的に効く。解釈しやすい<b>「1年先」を主指標</b>に置きました（時間軸も松岡さんのご希望に合わせます）。</p>
+
+  <div class="callout ok"><b>①と②の対比がきれい：</b>「今の適正価格は属性でかなり説明できる（①R²0.86）／未来の値動きは本質的に難しい（②R²0.21）」。①は基礎集計として十分使える土台で、②はここからが本番（松岡さんの領域）です。</div>
+</div>
+
+<!-- 4. 示唆 -->
+<h2><span class="num">4</span>見えてきた示唆（ご参考）</h2>
+<div class="card">
+  <p>「どの特徴が、どう効いているか」を見ると、傾向としては次のようなことが言えそうでした。<b>あくまでエリア集計レベルの傾向</b>で、断定ではありません。</p>
+
+  <h3>① 価格の勢いは「持続」ではなく「平均回帰」</h3>
+  <p>各特徴の値を動かしたとき、モデルが予測する<b>1年先の変化率</b>がどう動くか（部分依存）を見ると：</p>
+  <table class="pdwrap">
+    <thead><tr><th>直近1年の変化率（現在）</th><th>→ 予測される1年先の変化率</th></tr></thead>
+    <tbody>
+      <tr><td>−29%（大きく下げた地区）</td><td class="pos">+11%（むしろ上がる）</td></tr>
+      <tr><td>±0%付近</td><td>+7%</td></tr>
+      <tr><td>+18%</td><td>+2%</td></tr>
+      <tr><td>+65%（急騰した地区）</td><td class="neg">−1%（頭打ち〜反落）</td></tr>
+    </tbody>
+  </table>
+  <p>→ 直近で大きく上がったエリアほど翌年は伸びにくく、下げたエリアは戻りやすい、という<b>平均回帰</b>の形がはっきり出ました。「前年と同じだけ動く」という素朴予測が一番大外ししたのも、これが理由です（勢いは“続かない”）。前四半期比（qoq）では、この反転がさらに強く出ています。</p>
+
+  <h3>② 細かい粒度にすると「立地」が効いてくる</h3>
+  <p>市区町村粒度（v1）では立地（区市）の効果はほぼ消えていましたが、<b>町丁目粒度（v2）にすると立地・流動性が予測に効く特徴として浮上</b>しました。粗く均すと立地差が消えてしまうため、という解釈です。</p>
+
+  <h3>③ 割安・高流動・築古エリアが相対的に伸びやすい傾向</h3>
+  <ul>
+    <li><b>㎡単価が割安</b>なエリアほど翌年の伸びが大きめ（超高額エリアは頭打ち）。</li>
+    <li><b>取引が活発（流動性が高い）</b>なエリアがやや伸びやすい。</li>
+    <li><b>平均築年が古い</b>エリアほど伸びる傾向（＝建物より土地の価値が中心の都心エリアを拾っている可能性）。</li>
+  </ul>
+
+  <div class="callout warn">
+    <b>限界・注意（重要）：</b>
+    <ul style="margin:6px 0 0">
+      <li>あくまで<b>エリア×四半期の集計</b>に対する傾向で、個別物件の予測ではありません。</li>
+      <li>町丁目は1セルあたりの取引が少なく（中央値2件程度）、中央値が振れます。足切りで緩和していますが、ノイズは残ります。</li>
+      <li>R²=0.21は「全然当たらない訳ではない」程度。実務利用にはまだ改善の余地があります。</li>
+      <li>設備・階・向きなど<b>物件固有の情報は未投入</b>（次章）。</li>
+    </ul>
+  </div>
+</div>
+
+<!-- 5. 今後の計画 -->
+<h2><span class="num">5</span>今後の計画（SUUMO スクレイピングについて）</h2>
+<div class="card">
+  <p>今回の試し分析で、<b>立地・面積・築年・エリア相場だけでも一定の傾向は出る</b>一方、<b>物件固有の情報（設備・階・向きなど）はまだ入っていない</b>ことがはっきりしました。ここを足すなら SUUMO の掲載詳細をスクレイピングする、というのが当初からの構想です。</p>
+
+  <h3>SUUMO の robots.txt を確認しました <span class="badge b-done">確認済</span></h3>
+  <div class="callout ok">
+    <b>robots.txt 上は、今回使う売買の一覧/詳細ページは許可</b>でした（中古マンション <code>/ms/chuko/…</code>、新築/中古戸建て <code>/ikkodate/…</code> <code>/chukoikkodate/…</code>）。<b>AIクローラを名指しで禁止する記述も無し</b>（以前外した mansion-review とは異なります）。<code>bingbot</code> 向けに <code>Crawl-delay: 30秒</code> の記載あり（礼儀としての目安）。
+  </div>
+  <div class="callout warn">
+    <b>ただし、拘束力があるのは「利用規約」</b>です。一般に各サイトは自動収集・再利用を規約で制限していることが多く、ここは robots.txt とは別に確認・判断が必要です。<b>個人/研究用途・小規模・低頻度</b>を前提に、慎重に進めるべき領域と考えています。
+  </div>
+
+  <h3>進め方の案（ご相談）</h3>
+  <table>
+    <thead><tr><th>ステップ</th><th>内容</th><th>状態</th></tr></thead>
+    <tbody>
+      <tr><td><b>B-0 規約確認</b></td><td>SUUMO 利用規約を精読し、自動収集の可否・条件を整理</td><td><span class="badge b-todo">次にやる</span></td></tr>
+      <tr><td><b>B-1 設備抽出</b></td><td>詳細ページから設備（3口コンロ等）・階・向きを抽出（既存パーサを拡張）</td><td><span class="badge b-todo">規約OKなら</span></td></tr>
+      <tr><td><b>B-2 小規模取得</b></td><td>低頻度・少量で取得し、物件粒度の特徴量を学習テーブルに付加</td><td><span class="badge b-todo">同上</span></td></tr>
+    </tbody>
+  </table>
+  <p class="muted">※ 既存の SUUMO スクレイパーと、過去に試験取得した約16,551行は手元に保持済み。設備取得が必要となれば流用できます。</p>
+
+  <div class="callout">
+    <b>当面の論点：</b>
+    <ul style="margin:6px 0 0">
+      <li>SUUMO 設備の取得に進むか／まずは規約確認だけ先に行うか。</li>
+      <li>あるいは、当面はスクレイピングせず<b>公式API由来データの拡充</b>（他県への横展開で学習量を増やす 等）で進めるか。</li>
+      <li>目的変数・予測の時間軸・粒度について、松岡さんのご希望。</li>
+    </ul>
+  </div>
+</div>
+
+<footer>
+  本レポートは「データ基盤の共有」と「データ素性チェックのための試し分析」をまとめたものです。モデルの本番設計・精度追い込みは松岡さんの所掌という前提で、結果は参考情報として記載しています。<br>
+  作成: 平山 ／ 宛先: 松岡さん ／ 2026-06-01
+</footer>
+
+</div>
+</body>
+</html>

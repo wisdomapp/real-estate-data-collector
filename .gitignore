@@ -80,3 +80,7 @@ __pypackages__/
 data/
 raw/
 
+# 内部の計画・引き継ぎメモ（gitには入れない。ローカルのみ）
+keikaku.md
+hikitsugi.md
+

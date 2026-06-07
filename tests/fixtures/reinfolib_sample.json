@@ -1,0 +1,49 @@
+{
+  "status": "OK",
+  "data": [
+    {
+      "Type": "中古マンション等",
+      "Region": "",
+      "MunicipalityCode": "13101",
+      "Prefecture": "東京都",
+      "Municipality": "千代田区",
+      "DistrictName": "神田神保町",
+      "TradePrice": "53000000",
+      "PricePerUnit": "",
+      "FloorPlan": "2LDK",
+      "Area": "55",
+      "UnitPrice": "963000",
+      "BuildingYear": "1995年",
+      "Structure": "ＳＲＣ",
+      "Use": "住宅",
+      "Purpose": "住宅",
+      "Direction": "",
+      "CityPlanning": "商業地域",
+      "CoverageRatio": "80",
+      "FloorAreaRatio": "600",
+      "Period": "2024年第1四半期",
+      "Renovation": "改装済",
+      "Remarks": "",
+      "NearestStation": "神保町",
+      "TimeToNearestStation": "3"
+    },
+    {
+      "Type": "宅地(土地と建物)",
+      "Region": "",
+      "MunicipalityCode": "13111",
+      "Prefecture": "東京都",
+      "Municipality": "大田区",
+      "DistrictName": "西蒲田",
+      "TradePrice": "78,000,000",
+      "FloorPlan": "",
+      "Area": "100",
+      "TotalFloorArea": "95",
+      "BuildingYear": "平成22年",
+      "Structure": "木造",
+      "Use": "住宅",
+      "Period": "2023年第4四半期",
+      "NearestStation": "蒲田",
+      "TimeToNearestStation": "1H30"
+    }
+  ]
+}
